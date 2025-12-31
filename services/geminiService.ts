@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DiagramResponse } from "../types";
 
@@ -6,15 +7,15 @@ const diagramSchema: Schema = {
   properties: {
     title: {
       type: Type.STRING,
-      description: "A short, descriptive title for the diagram.",
+      description: "Um título curto e impactante para o diagrama.",
     },
     mermaidCode: {
       type: Type.STRING,
-      description: "Valid Mermaid.js code representing the requested diagram. Do not include markdown code blocks (```mermaid), just the raw code.",
+      description: "Código Mermaid.js puro e válido. Use as melhores práticas de design visual.",
     },
     explanation: {
       type: Type.STRING,
-      description: "A brief explanation of what the diagram represents in Portuguese.",
+      description: "Uma explicação clara e profissional em português brasileiro.",
     },
   },
   required: ["title", "mermaidCode", "explanation"],
@@ -22,53 +23,40 @@ const diagramSchema: Schema = {
 
 export const generateDiagram = async (prompt: string): Promise<DiagramResponse> => {
   try {
-    // Initialize client inside the function to ensure process.env.API_KEY is available at call time
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Using gemini-2.0-flash-exp as it is currently available and performant. 
-    // 'gemini-2.5-flash' may be restricted or not yet public, causing 403 errors.
-    const model = "gemini-2.0-flash-exp";
+    const model = "gemini-3-flash-preview";
     
     const systemInstruction = `
-      You are an expert Diagram Engineer specialized in Mermaid.js.
-      Your goal is to convert user natural language descriptions into valid, syntactically correct Mermaid.js code.
+      Você é um Arquiteto de Diagramas Sênior especialista em Mermaid.js.
+      Sua missão é criar representações visuais elegantes e tecnicamente precisas.
       
-      Supported Diagram Types: Flowchart, Sequence, Class, State, ER, Gantt, User Journey, Mindmap.
+      Diretrizes de Design:
+      1. SINTAXE: Sempre use aspas duplas em labels: node["Texto"].
+      2. ESTÉTICA: Para fluxogramas, use 'graph TD' (vertical) ou 'graph LR' (horizontal) conforme o conteúdo.
+      3. CORES: Use classes de estilo (classDef) se necessário para destacar caminhos críticos.
+      4. COMPLEXIDADE: Use subgraphs para agrupar conceitos relacionados.
+      5. IDIOMA: Título e explicação DEVEM ser em Português (Brasil).
       
-      Rules:
-      1. CRITICAL: Always enclose node text/labels in double quotes to prevent syntax errors with special characters or parentheses. 
-         Example: Use node1["Label Text (Details)"] instead of node1[Label Text (Details)].
-      2. CRITICAL: For Flowcharts, the first line MUST be just the graph type (e.g., 'graph TD' or 'graph LR'). All node definitions must start on a NEW LINE.
-         Incorrect: graph TD A["Start"]
-         Correct: 
-         graph TD
-         A["Start"]
-      3. Use clear labels and meaningful logic.
-      4. Use styling (subgraphs, classes) to make diagrams look professional if complex.
-      5. Respond in Portuguese for the title and explanation.
-      6. Do NOT wrap the mermaid code in markdown backticks.
+      Não use blocos de código markdown. Retorne apenas o JSON puro conforme o esquema.
     `;
 
     const response = await ai.models.generateContent({
       model,
-      contents: prompt,
+      contents: `User Request: ${prompt}`,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema: diagramSchema,
-        temperature: 0.2, // Low temperature for deterministic code generation
+        temperature: 0.1,
       },
     });
 
     const text = response.text;
-    if (!text) {
-      throw new Error("No response from AI");
-    }
+    if (!text) throw new Error("Sem resposta da IA");
 
-    const data = JSON.parse(text) as DiagramResponse;
-    return data;
+    return JSON.parse(text) as DiagramResponse;
   } catch (error) {
-    console.error("Error generating diagram:", error);
+    console.error("Gemini Service Error:", error);
     throw error;
   }
 };
